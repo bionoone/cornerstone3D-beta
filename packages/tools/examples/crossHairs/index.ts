@@ -44,14 +44,40 @@ const toolGroupId = 'MY_TOOLGROUP_ID';
 const viewportId1 = 'CT_AXIAL';
 const viewportId2 = 'CT_SAGITTAL';
 const viewportId3 = 'CT_CORONAL';
-const viewportIds = [viewportId1, viewportId2, viewportId3];
+const viewportId4 = 'CT_OTHER';
+const viewportId5 = 'CT_OTHER2';
+
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const paramValue = urlParams.get('viewports');
+
+let nbViewports = 3;
+try {
+  nbViewports = Math.min(5, Math.max(2, parseInt(paramValue)));
+} catch (e) {
+  console.error('Invalid number of viewports');
+  nbViewports = 3;
+} finally {
+  if (!isFinite(nbViewports)) {
+    nbViewports = 3;
+  }
+}
+
+const viewportIds = [
+  viewportId1,
+  viewportId2,
+  viewportId3,
+  viewportId4,
+  viewportId5,
+].slice(0, nbViewports);
+
 const renderingEngineId = 'myRenderingEngine';
 const synchronizerId = 'SLAB_THICKNESS_SYNCHRONIZER_ID';
 
 // ======== Set up page ======== //
 setTitleAndDescription(
   'Crosshairs',
-  'Here we demonstrate crosshairs linking three orthogonal views of the same data. You can select the blend mode that will be used if you modify the slab thickness of the crosshairs by dragging the control points.'
+  'Here we demonstrate crosshairs linking several views of the same data. You can select the blend mode that will be used if you modify the slab thickness of the crosshairs by dragging the control points.'
 );
 
 const size = '500px';
@@ -62,36 +88,36 @@ viewportGrid.style.display = 'flex';
 viewportGrid.style.display = 'flex';
 viewportGrid.style.flexDirection = 'row';
 
-const element1 = document.createElement('div');
-const element2 = document.createElement('div');
-const element3 = document.createElement('div');
-element1.style.width = size;
-element1.style.height = size;
-element2.style.width = size;
-element2.style.height = size;
-element3.style.width = size;
-element3.style.height = size;
+const make = (): HTMLDivElement => {
+  const element1 = document.createElement('div');
+  element1.style.width = size;
+  element1.style.height = size;
+  // Disable right click context menu so we can have right click tools
+  element1.oncontextmenu = (e) => e.preventDefault();
+  viewportGrid.appendChild(element1);
+  return element1;
+};
 
-// Disable right click context menu so we can have right click tools
-element1.oncontextmenu = (e) => e.preventDefault();
-element2.oncontextmenu = (e) => e.preventDefault();
-element3.oncontextmenu = (e) => e.preventDefault();
-
-viewportGrid.appendChild(element1);
-viewportGrid.appendChild(element2);
-viewportGrid.appendChild(element3);
+const elements = viewportIds.map((id) => {
+  return {
+    id,
+    element: make(),
+  };
+});
 
 content.appendChild(viewportGrid);
 
 const instructions = document.createElement('p');
-instructions.innerText = `
-  Basic controls:
-  - Click/Drag anywhere in the viewport to move the center of the crosshairs.
-  - Drag a reference line to move it, scrolling the other views.
-
-  Advanced controls: Hover over a line and find the following two handles:
-  - Square (closest to center): Drag these to change the thickness of the MIP slab in that plane.
-  - Circle (further from center): Drag these to rotate the axes.
+instructions.innerHTML = `
+  Basic controls:<br/>
+  - Click/Drag anywhere in the viewport to move the center of the crosshairs.<br/>
+  - Drag a reference line to move it, scrolling the other views.<br/>
+<br/>
+  Advanced controls: Hover over a line and find the following two handles:<br/>
+  - Square (closest to center): Drag these to change the thickness of the MIP slab in that plane.<br/>
+  - Circle (further from center): Drag these to rotate the axes.<br/>
+  <br/>
+  you can change number of viewport : <a href="?viewports=2">2</a> ,  <a href="?viewports=3">3</a>, <a href="?viewports=4">4</a> or <a href="?viewports=5">5</a> (or more)
   `;
 
 content.append(instructions);
@@ -99,9 +125,9 @@ content.append(instructions);
 addButtonToToolbar({
   title: 'Reset Camera',
   onClick: () => {
-    const viewport1 = getRenderingEngine(renderingEngineId).getViewport(
-      viewportId1
-    ) as Types.IVolumeViewport;
+    const viewport1 = getRenderingEngine(
+      renderingEngineId
+    ).getViewports()[0] as Types.IVolumeViewport;
     const resetPan = true;
     const resetZoom = true;
     const resetToCenter = true;
@@ -123,46 +149,30 @@ const viewportColors = {
   [viewportId1]: 'rgb(200, 0, 0)',
   [viewportId2]: 'rgb(200, 200, 0)',
   [viewportId3]: 'rgb(0, 200, 0)',
+  [viewportId4]: 'rgb(0, 0, 200)',
+  [viewportId5]: 'rgb(207, 106, 39)',
 };
 
 let synchronizer;
 
-const viewportReferenceLineControllable = [
-  viewportId1,
-  viewportId2,
-  viewportId3,
-];
-
-const viewportReferenceLineDraggableRotatable = [
-  viewportId1,
-  viewportId2,
-  viewportId3,
-];
-
-const viewportReferenceLineSlabThicknessControlsOn = [
-  viewportId1,
-  viewportId2,
-  viewportId3,
-];
+let OptionRotatable = true;
+let OptionDraggable = true;
+let OptionSlab = true;
 
 function getReferenceLineColor(viewportId) {
   return viewportColors[viewportId];
 }
 
-function getReferenceLineControllable(viewportId) {
-  const index = viewportReferenceLineControllable.indexOf(viewportId);
-  return index !== -1;
+function getReferenceLineDraggable(viewportId) {
+  return OptionDraggable;
 }
 
-function getReferenceLineDraggableRotatable(viewportId) {
-  const index = viewportReferenceLineDraggableRotatable.indexOf(viewportId);
-  return index !== -1;
+function getReferenceLineRotatable(viewportId) {
+  return OptionRotatable;
 }
 
 function getReferenceLineSlabThicknessControlsOn(viewportId) {
-  const index =
-    viewportReferenceLineSlabThicknessControlsOn.indexOf(viewportId);
-  return index !== -1;
+  return OptionSlab;
 }
 
 const blendModeOptions = {
@@ -230,11 +240,76 @@ addToggleButtonToToolbar({
   },
 });
 
+addToggleButtonToToolbar({
+  id: 'ID_ROTATABLE',
+  title: 'Enable rotation',
+  defaultToggle: OptionRotatable,
+  onClick: (toggle) => {
+    OptionRotatable = toggle;
+  },
+});
+
+addToggleButtonToToolbar({
+  id: 'ID_DRAGGABLE',
+  title: 'Enable Drag',
+  defaultToggle: OptionDraggable,
+  onClick: (toggle) => {
+    OptionDraggable = toggle;
+  },
+});
+addToggleButtonToToolbar({
+  id: 'ID_SLAB',
+  title: 'Enable Slab',
+  defaultToggle: OptionSlab,
+  onClick: (toggle) => {
+    OptionSlab = toggle;
+  },
+});
+addToggleButtonToToolbar({
+  id: 'ID_INDICATOR',
+  title: 'Show Indicator',
+  defaultToggle: true,
+  onClick: (toggle) => {
+    const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
+    const crosshairsInstance = toolGroup.getToolInstance(
+      CrosshairsTool.toolName
+    );
+    crosshairsInstance.configuration.viewportIndicators = toggle;
+    getRenderingEngine(renderingEngineId).renderViewports(viewportIds);
+  },
+});
+
+addToggleButtonToToolbar({
+  id: 'ID_AUTOPAN',
+  title: 'Auto pan',
+  defaultToggle: false,
+  onClick: (toggle) => {
+    const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
+    const crosshairsInstance = toolGroup.getToolInstance(
+      CrosshairsTool.toolName
+    );
+    crosshairsInstance.configuration.autoPan.enabled = toggle;
+  },
+});
+
+addToggleButtonToToolbar({
+  id: 'ID_Ortho',
+  title: 'Orthogonal',
+  defaultToggle: true,
+  onClick: (toggle) => {
+    const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
+    const crosshairsInstance = toolGroup.getToolInstance(
+      CrosshairsTool.toolName
+    );
+    crosshairsInstance.configuration.forceOrthogonal = toggle;
+  },
+});
+
 function setUpSynchronizers() {
   synchronizer = createSlabThicknessSynchronizer(synchronizerId);
 
   // Add viewports to VOI synchronizers
-  [viewportId1, viewportId2, viewportId3].forEach((viewportId) => {
+  viewportIds.forEach((viewportId) => {
     synchronizer.add({
       renderingEngineId,
       viewportId,
@@ -274,35 +349,21 @@ async function run() {
   const renderingEngine = new RenderingEngine(renderingEngineId);
 
   // Create the viewports
-  const viewportInputArray = [
-    {
-      viewportId: viewportId1,
+  const viewportInputArray = elements.map(({ id, element }, index: number) => {
+    return {
+      viewportId: id,
       type: ViewportType.ORTHOGRAPHIC,
-      element: element1,
+      element: element,
       defaultOptions: {
-        orientation: Enums.OrientationAxis.AXIAL,
+        orientation: [
+          Enums.OrientationAxis.AXIAL,
+          Enums.OrientationAxis.SAGITTAL,
+          Enums.OrientationAxis.CORONAL,
+        ][index % 3],
         background: <Types.Point3>[0, 0, 0],
       },
-    },
-    {
-      viewportId: viewportId2,
-      type: ViewportType.ORTHOGRAPHIC,
-      element: element2,
-      defaultOptions: {
-        orientation: Enums.OrientationAxis.SAGITTAL,
-        background: <Types.Point3>[0, 0, 0],
-      },
-    },
-    {
-      viewportId: viewportId3,
-      type: ViewportType.ORTHOGRAPHIC,
-      element: element3,
-      defaultOptions: {
-        orientation: Enums.OrientationAxis.CORONAL,
-        background: <Types.Point3>[0, 0, 0],
-      },
-    },
-  ];
+    };
+  });
 
   renderingEngine.setViewports(viewportInputArray);
 
@@ -318,7 +379,7 @@ async function run() {
         callback: setCtTransferFunctionForVolumeActor,
       },
     ],
-    [viewportId1, viewportId2, viewportId3]
+    viewportIds
   );
 
   // Define tool groups to add the segmentation display tool to
@@ -327,9 +388,9 @@ async function run() {
 
   // For the crosshairs to operate, the viewports must currently be
   // added ahead of setting the tool active. This will be improved in the future.
-  toolGroup.addViewport(viewportId1, renderingEngineId);
-  toolGroup.addViewport(viewportId2, renderingEngineId);
-  toolGroup.addViewport(viewportId3, renderingEngineId);
+  viewportIds.forEach((viewportId) => {
+    toolGroup.addViewport(viewportId, renderingEngineId);
+  });
 
   // Manipulation Tools
   // Add Crosshairs tool and configure it to link the three viewports
@@ -340,14 +401,15 @@ async function run() {
 
   toolGroup.addTool(CrosshairsTool.toolName, {
     getReferenceLineColor,
-    getReferenceLineControllable,
-    getReferenceLineDraggableRotatable,
+    getReferenceLineDraggable,
+    getReferenceLineRotatable,
     getReferenceLineSlabThicknessControlsOn,
     mobile: {
       enabled: isMobile,
       opacity: 0.8,
       handleRadius: 9,
     },
+    viewportIndicators: true,
   });
 
   toolGroup.setToolActive(CrosshairsTool.toolName, {

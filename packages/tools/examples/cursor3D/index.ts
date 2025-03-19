@@ -192,7 +192,7 @@ function addTemporaryPickedPositionLabel(
 function setCrossHairPosition(pickedPoint) {
   const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
   const crosshairTool = toolGroup.getToolInstance(CrosshairsTool.toolName);
-  crosshairTool.setToolCenter(pickedPoint, true);
+  crosshairTool.setToolCenter(pickedPoint, undefined, true);
 }
 
 function addSphere(viewport, point) {

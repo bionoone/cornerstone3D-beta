@@ -1610,7 +1610,18 @@ class Viewport {
         cameraModifiedOutOfPlane =
           Math.abs(vtkMath.dot(deltaCamera, currentViewPlaneNormal)) > 0;
       }
-
+      // if (
+      //   !cameraModifiedOutOfPlane &&
+      //   position !== undefined &&
+      //   previousCamera.position !== undefined
+      // ) {
+      //   // detect case where focal point remains the same but camera position rotates around it.
+      //   cameraModifiedOutOfPlane =
+      //     vec3.dot(
+      //       vec3.subtract(vec3.create(), position, previousCamera.position),
+      //       currentViewPlaneNormal
+      //     ) !== 0;
+      // }
       if (viewUp) {
         viewUpHasChanged = !isEqual(currentViewUp, prevViewUp);
       }
